@@ -20,9 +20,15 @@ static Maybe<uint64_t> mStartIncludingSuspendMs;
 namespace mozilla {
 
 void InitializeUptime() {
-  MOZ_RELEASE_ASSERT(mStartIncludingSuspendMs.isNothing() &&
-                         mStartExcludingSuspendMs.isNothing(),
-                     "Must not be called more than once");
+  // wasm32-wasip3: wasi-libc's `_initialize` runs static constructors at
+  // component instantiation, and wit-bindgen's `run_ctors_once` runs them
+  // again at the first export call (independent guards). Until upstream
+  // wit-bindgen learns to skip ctors when `_initialize` already ran them,
+  // double initialization is the expected shape on this platform, so make
+  // this function idempotent instead of asserting.
+  if (mStartIncludingSuspendMs.isSome() || mStartExcludingSuspendMs.isSome()) {
+    return;
+  }
   mStartIncludingSuspendMs = NowIncludingSuspendMs();
   mStartExcludingSuspendMs = NowExcludingSuspendMs();
 }

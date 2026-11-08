@@ -560,17 +560,12 @@ fn get_common_cc(build_dir: &Path, target: BuildTarget) -> cc::Build {
         }
 
         if target_triple.contains("wasi") {
-            // Unconditionally target p1 for now. Even if the application
-            // targets p2, an adapter will take care of it.
-            // TODO: This looks wierd to me. As part of the cc-rs migration,
-            // we'll stick with using the raw `.flag` instead of `.target()` for
-            // now, since using `.target()` would have other side-effects too,
-            // like looking at other `<VAR>_<target>` variables (if the cargo target
-            // doesn't match `-wasip1`).
-            // Someone familiar with wasi should look into this.
-            builder
-                .flag("--target=wasm32-wasip1")
-                .flag_if_supported("-fvisibility=default");
+            // Target the triple cargo is building for, not a hardcoded p1.
+            // The p1 hardcode predates wasm32-wasip3: forcing p1 headers
+            // onto a p3 build clashes with the p3 sysroot's libc++
+            // (visibility mismatch in error_condition.h). cc-rs already
+            // passes the real --target; keep only the visibility default.
+            builder.flag_if_supported("-fvisibility=default");
         }
     }
 

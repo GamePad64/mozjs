@@ -2447,6 +2447,13 @@ def visibility_flags(target, env):
     if target.os != "WINNT":
         if target.kernel in ("Darwin", "FreeBSD", "OpenBSD"):
             return ("-fvisibility=hidden", "-fvisibility-inlines-hidden")
+        if target.kernel == "WASI":
+            # libc++ in recent wasi-sdks marks every exported ABI entity
+            # visibility("default"); gcc_hidden.h pushes hidden over the whole
+            # translation unit, and clang treats the pair as an error. Nothing
+            # in a statically linked wasm build consumes symbol visibility, so
+            # just compile without it.
+            return ("-I%s/system_wrappers" % os.path.join(env.dist),)
         return (
             "-I%s/system_wrappers" % os.path.join(env.dist),
             "-include",

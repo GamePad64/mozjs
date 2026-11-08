@@ -396,6 +396,25 @@ fn build_bindings(build_dir: &Path, target: BuildTarget) {
         builder = builder
             .clang_arg("--sysroot")
             .clang_arg(env::var("WASI_SYSROOT").unwrap().to_string());
+        // Bindgen parses through the *host* libclang, whose wasm target
+        // includes do not know wasi-sdk's multilib layout (the sdk's clang
+        // patches that knowledge in; stock clang has no
+        // include/wasm32-<triple>/c++/v1 in its search). Point the libc++
+        // trees out explicitly, multilib tree first — that is the order the
+        // sdk's own driver uses, and `__config_site` from the `eh` tree must
+        // shadow the shared one. The `eh` variant matches the flags the
+        // SpiderMonkey objects were compiled with.
+        let triple = env::var("TARGET").unwrap();
+        let libcxx_multi = format!(
+            "{}/include/{triple}/eh/c++/v1",
+            env::var("WASI_SYSROOT").unwrap()
+        );
+        if Path::new(&libcxx_multi).is_dir() {
+            builder = builder.clang_arg("-isystem").clang_arg(libcxx_multi);
+        }
+        builder = builder
+            .clang_arg("-isystem")
+            .clang_arg(format!("{}/include/c++/v1", env::var("WASI_SYSROOT").unwrap()));
     }
 
     if target == BuildTarget::JSGlue {

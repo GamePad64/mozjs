@@ -415,6 +415,19 @@ fn build_bindings(build_dir: &Path, target: BuildTarget) {
         builder = builder
             .clang_arg("-isystem")
             .clang_arg(format!("{}/include/c++/v1", env::var("WASI_SYSROOT").unwrap()));
+        // libclang does not append its resource dir to the header search
+        // path the way the clang *driver* does (clang -v shows it between
+        // the -isystem trees and the sysroot multilib dirs). libc++'s
+        // stddef.h ends with `#include_next <stddef.h>`, which resolves
+        // only via that resource dir; without it bindgen dies with
+        // "'stddef.h' file not found" on every libc++ header. Accept the
+        // resource dir through LIBCLANG_RESOURCE_DIR so CI can point it at
+        // its clang install (e.g. /usr/lib/llvm-21/lib/clang/21).
+        if let Ok(resource_dir) = env::var("LIBCLANG_RESOURCE_DIR") {
+            builder = builder
+                .clang_arg("-resource-dir")
+                .clang_arg(resource_dir);
+        }
     }
 
     if target == BuildTarget::JSGlue {
